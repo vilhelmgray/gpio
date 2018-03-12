@@ -193,6 +193,68 @@ static int idio_24_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(ioread8(&idio24gpio->reg->ttl_in0_7) & offset_mask);
 }
 
+static int idio_24_gpio_get_multiple(struct gpio_chip *chip,
+	unsigned long *mask, unsigned long *bits)
+{
+	struct idio_24_gpio *const idio24gpio = gpiochip_get_data(chip);
+	struct idio_24_gpio_reg __iomem *const reg = idio24gpio->reg;
+	unsigned int i;
+	const unsigned int gpio_reg_size = 8;
+	unsigned int bit_word_offset;
+	unsigned int bits_mask;
+	const unsigned long reg_mask = GENMASK(gpio_reg_size, 0);
+	unsigned long port_state;
+	const unsigned long out_mode_mask = BIT(1);
+
+	/* clear bits array to a clean slate */
+	for (i = 0; i < chip->ngpio; i += BITS_PER_LONG)
+		bits[i / BITS_PER_LONG] = 0;
+
+	/* get bits are evaluated a gpio register size at a time */
+	for (i = 0; i < chip->ngpio; i += gpio_reg_size) {
+		bit_word_offset = i % BITS_PER_LONG;
+		bits_mask = mask[BIT_WORD(i)] & (reg_mask << bit_word_offset);
+		if (!bits_mask) {
+			/* no get bits in this register so skip to next one */
+			continue;
+		}
+
+		/* read bits from current gpio register */
+		switch (i / gpio_reg_size) {
+		case 0:
+			port_state = ioread8(&reg->out0_7);
+			break;
+		case 1:
+			port_state = ioread8(&reg->out8_15);
+			break;
+		case 2:
+			port_state = ioread8(&reg->out16_23);
+			break;
+		case 3:
+			port_state = ioread8(&reg->in0_7);
+			break;
+		case 4:
+			port_state = ioread8(&reg->in8_15);
+			break;
+		case 5:
+			port_state = ioread8(&reg->in16_23);
+			break;
+		case 6:
+			/* TTL/CMOS Outputs/Inputs */
+			if (ioread8(&reg->ctl) & out_mode_mask)
+				port_state = ioread8(&reg->ttl_out0_7);
+			else
+				port_state = ioread8(&reg->ttl_in0_7);
+			break;
+		}
+
+		/* store acquired bits */
+		bits[BIT_WORD(i)] |= port_state << bit_word_offset;
+	}
+
+	return 0;
+}
+
 static void idio_24_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	int value)
 {
@@ -397,6 +459,7 @@ static int idio_24_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	idio24gpio->chip.direction_input = idio_24_gpio_direction_input;
 	idio24gpio->chip.direction_output = idio_24_gpio_direction_output;
 	idio24gpio->chip.get = idio_24_gpio_get;
+	idio24gpio->chip.get_multiple = idio_24_gpio_get_multiple;
 	idio24gpio->chip.set = idio_24_gpio_set;
 
 	raw_spin_lock_init(&idio24gpio->lock);
