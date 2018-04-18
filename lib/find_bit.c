@@ -20,6 +20,7 @@
 #include <linux/bitmap.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
+#include <linux/types.h>
 
 #if !defined(find_next_bit) || !defined(find_next_zero_bit) || \
 		!defined(find_next_and_bit)
@@ -218,3 +219,30 @@ EXPORT_SYMBOL(find_next_bit_le);
 #endif
 
 #endif /* __BIG_ENDIAN */
+
+size_t find_next_port_word(size_t *const word_index,
+			   unsigned int *const word_offset,
+			   const unsigned long *const bits, const size_t size,
+			   const size_t offset, const unsigned int port_size)
+{
+	size_t i;
+	unsigned int bits_offset;
+	unsigned long word_mask;
+	const unsigned long port_mask = GENMASK(port_size - 1, 0);
+
+	for (i = offset; i < size; i++) {
+		bits_offset = i * port_size;
+
+		*word_index = BIT_WORD(bits_offset);
+		*word_offset = bits_offset % BITS_PER_LONG;
+
+		word_mask = bits[*word_index] & (port_mask << *word_offset);
+		if (!word_mask)
+			continue;
+
+		return i;
+	}
+
+	return size;
+}
+EXPORT_SYMBOL(find_next_port_word);

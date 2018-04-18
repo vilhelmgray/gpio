@@ -80,4 +80,28 @@ extern unsigned long find_first_zero_bit(const unsigned long *addr,
 
 #endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
 
+/**
+ * find_next_port_word - find next port word with set bits in a memory region
+ * @word_index: location to store bitmap word index of found port word
+ * @word_offset: bits offset of the found port word in respective bitmap word
+ * @bits: address to base the search on
+ * @size: bitmap size in number of ports
+ * @offset: port word index to start searching at
+ * @port_size: port word size in bits
+ *
+ * Returns the port index for the next port word with set bits; the respective
+ * bitmap word index is stored at the location pointed by @word_index, and the
+ * bits offset of the found port word within the respective bitmap word is
+ * stored at the location pointed by @word_offset. If no bits are set, returns
+ * @size.
+ */
+size_t find_next_port_word(size_t *const word_index,
+			   unsigned int *const word_offset,
+			   const unsigned long *const bits, const size_t size,
+			   const size_t offset, const unsigned int port_size);
+
+#define find_first_port_word(word_index, word_offset, bits, size, port_size) \
+	find_next_port_word((word_index), (word_offset), (bits), (size), 0, \
+			    (port_size))
+
 #endif /*_ASM_GENERIC_BITOPS_FIND_H_ */

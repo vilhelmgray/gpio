@@ -59,6 +59,15 @@ extern unsigned long __sw_hweight64(__u64 w);
 	     (bit) < (size);					\
 	     (bit) = find_next_zero_bit((addr), (size), (bit) + 1))
 
+#define for_each_set_port_word(port_word, word_index, word_offset, bits, size, \
+			       port_size) \
+	for ((port_word) = find_first_port_word(&(word_index), &(word_offset), \
+					   (bits), (size), (port_size)); \
+	     (port_word) < (size); \
+	     (port_word) = find_next_port_word(&(word_index), &(word_offset), \
+					  (bits), (size), (port_word) + 1, \
+					  (port_size)))
+
 static inline int get_bitmask_order(unsigned int count)
 {
 	int order;
